@@ -1,31 +1,64 @@
-# Image Enhancement with ESRGAN
+# 🪄 AI Image Enhancer (React Native + Real-ESRGAN)
 
-This project demonstrates how to use **Enhanced Super-Resolution Generative Adversarial Networks (ESRGAN)** to enhance low-resolution images. Users can upload low-resolution images, which are then processed using either the **Real-ESRGAN** or **Anime ESRGAN** model for 4x upscaling.
+This is a mobile application that allows users to enhance the resolution of low-quality images using AI. It supports both **photo** and **anime-style** image enhancement using the **Real-ESRGAN model**.
 
-## **Features**
-- Enhance images using **Real-ESRGAN** and **Anime ESRGAN** models.
-- **Flask** backend that handles image enhancement.
+---
 
-## **Technologies Used**
-- **Frontend**: 
-  
-- **Backend**: 
-  - **Flask** for the backend API.
-  - **PyTorch** and **Real-ESRGAN** for image enhancement.
+## ✨ Features
 
-## **Installation & Setup**
-> Python version: 3.9
+- Upload an image from your gallery
+- Select enhancement model:  
+  `Default Model` or `Anime Model`
+- Preview original and enhanced image
+- Works with AI backend using Real-ESRGAN
+- Modern UI with light/dark mode support
 
-### Backend (Flask):
-1. Clone this repository:
-   ```bash
-   git clone https://github.com/yourusername/ds-mid-term.git
-   cd ds-mid-term
-2. Install dependencies:
-    ```bash
-    pip install -r requirements.txt
-    ```
-3. Run the Flask app:
-    ```bash
-    python app.py
-    ```
+---
+
+## 🧱 Tech Stack
+
+| Layer      | Tech                                |
+|------------|-------------------------------------|
+| Frontend   | Expo (React Native), TypeScript     |
+| Backend    | Python (Flask) + Real-ESRGAN model  |
+| Enhancement Models | Real-ESRGAN, Anime model (x4) |
+| UI Theme   | Custom tabs, parallax, collapsible |
+
+---
+
+## 🚀 Getting Started
+
+### 📱 Frontend (React Native + Expo)
+
+```bash
+cd image-enhancer-app
+npm install
+npx expo start
+```
+
+- Make sure you're using Node.js and Expo CLI
+- Install `expo-image-picker`, `@react-native-picker/picker`, and `react-native-paper` if not already
+
+### 🧠 Backend (Flask + ESRGAN)
+
+```bash
+cd esrgan-backend
+python -m venv venv
+venv\Scripts\activate   # On Windows
+pip install -r requirements.txt
+python app.py
+```
+
+> Make sure to use **Python 3.9** for compatibility with Real-ESRGAN and PyTorch
+
+---
+
+## 📂 Folder Structure
+
+```
+├── esrgan-backend/       # Python Flask backend w/ Real-ESRGAN
+├── image-enhancer-app/   # React Native frontend (Expo)
+│   ├── app/(tabs)/index.tsx     # Home / Tutorial screen
+│   ├── app/(tabs)/enhance.tsx   # Main enhancer screen
+│   └── utils/imageEnhancer.ts   # Handles backend requests
+```
