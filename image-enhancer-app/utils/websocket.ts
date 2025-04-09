@@ -1,8 +1,9 @@
 // WebSocketUtility.ts
 
 export interface WebSocketMessage {
-uuid: string;
-image: string; // Base64 data URL string
+    uuid: string;
+    enhancement_type: string;
+    image: string; // Base64 data URL string
 }
   
 export type OnMessageHandler = (data: any) => void;
@@ -12,7 +13,7 @@ export class WebSocketUtility {
 
     // Reconnect configuration:
     private reconnectInterval = 1000; // initial delay in ms
-    private maxReconnectInterval = 30000; // maximum delay in ms
+    private maxReconnectInterval = 5000; // maximum delay in ms
     private reconnectAttempts = 0;
     private shouldReconnect = true;
 
@@ -29,7 +30,7 @@ export class WebSocketUtility {
         };
 
         this.ws.onmessage = (event) => {
-            console.log('Message received from server:', event.data);
+            // console.log('Message received from server:', event.data);
             // Call the onMessage handler to allow client code to process the data.
             this.onMessage(event.data);
         };
@@ -73,7 +74,7 @@ export class WebSocketUtility {
      * @param uuid - Unique identifier for the image.
      * @param image - A Blob or File representing the image.
      */
-    public sendImage(uuid: string, image: File | Blob): void {
+    public sendImage(uuid: string, enhancementType: string, image: File | Blob): void {
         if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
         console.error('WebSocket is not open. Please call connect() first.');
         return;
@@ -85,17 +86,18 @@ export class WebSocketUtility {
         reader.onload = () => {
         const dataUrl = reader.result as string;
         const payload: WebSocketMessage = {
-            uuid,
+            uuid: uuid,
+            enhancement_type: enhancementType,
             image: dataUrl,
         };
 
         // Send the JSON stringified payload.
         this.ws?.send(JSON.stringify(payload));
-        console.log('Sent image with UUID:', uuid);
+            console.log('Sent image with UUID:', uuid);
         };
 
         reader.onerror = (err) => {
-        console.error('Failed to read image file:', err);
+            console.error('Failed to read image file:', err);
         };
 
         // Read the image as a Data URL (Base64).
@@ -107,8 +109,8 @@ export class WebSocketUtility {
      */
     public disconnect(): void {
         if (this.ws) {
-        this.ws.close();
-        this.ws = null;
+            this.ws.close();
+            this.ws = null;
         }
     }
 }
