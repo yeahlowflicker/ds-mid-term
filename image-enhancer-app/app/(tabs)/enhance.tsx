@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Image, StyleSheet, useColorScheme, Platform, Button, ActionSheetIOS, TouchableOpacity, Alert } from 'react-native';
 import { Picker } from '@react-native-picker/picker';
 import ParallaxScrollView from '@/components/ParallaxScrollView';
@@ -8,6 +8,10 @@ import { IconSymbol } from '@/components/ui/IconSymbol';
 // import {/* backend hook */} from '@/hooks/imageEnhancer';
 import * as ImagePicker from 'expo-image-picker';
 
+import { WebSocketUtility } from '@/utils/websocket'
+import 'react-native-get-random-values';
+import { v4 as uuidv4 } from 'uuid';
+
 export default function EnhanceScreen() {
 
     const [ selectedImage, setSelectedImage ] = useState<string | null>(null);
@@ -16,8 +20,29 @@ export default function EnhanceScreen() {
     const [ model, setModel ] = useState('');
     const [ modelLabel, setModelLabel ] = useState('Select a model');
 
+    
     const colorScheme = useColorScheme();
     const isDark = colorScheme === 'dark';
+
+    const [wsUtility, setWsUtility] = useState<WebSocketUtility | null>(null);
+    
+    const wsUrl = 'ws://10.77.10.8:5000/ws';
+    const wsUtil = new WebSocketUtility(wsUrl);
+    useEffect(() => {
+        // Replace with your WebSocket server URL
+        wsUtil.onMessage = (data: any) => {
+            console.log('Custom onMessage handler:', data);
+            // You can parse and handle the data here
+        };
+        wsUtil.connect();
+        setWsUtility(wsUtil);
+    
+        // Clean up on unmount
+        return () => {
+            wsUtil.disconnect();
+        };
+    }, []);
+
 
     {/* Model Selection Functionality */}
     const openModelPicker = () => {
@@ -82,14 +107,48 @@ export default function EnhanceScreen() {
             // Call the backend API to enhance the image
             // const response = await enhanceImageAPI(selecterImage, model); // Replace with actual API call
             // setEnhancedImage(response.enhancedImage); // Set the enhanced image from the API response
+
+            // Convert image URI to Blob
+            const imageBlob: Blob = await uriToBlob(selectedImage);
+
+            wsUtil.connect()
+
+            // Generate or use an existing UUID for the image.
+            const uuid = uuidv4();
+            // Now, send the Blob (image file) over the WebSocket.
+            if (wsUtility) {
+                wsUtility.sendImage(uuid, imageBlob);
+            } else {
+                console.error('WebSocketUtility not initialized.');
+            }
+
             setEnhancedImage(selectedImage); // Placeholder for enhanced image
         } catch (error) {
             console.error('Error enhancing image:', error);
-            alert('Error enhancing image. Please try again.');
+            // alert('Error enhancing image. Please try again.');
+            alert(error);
         } finally {
             setLoading(false);
         }
     };
+
+    // Define types for the server responses
+    interface UploadResponse {
+        jobId: string;
+    }
+    
+    interface StatusResponse {
+        status: 'pending' | 'completed' | 'failed';
+        imageUrl?: string;
+    }
+    
+    // Helper function that converts a URI to a Blob.
+    // Note: Depending on your React Native version or setup, you might need a different approach or library.
+    async function uriToBlob(uri: string): Promise<Blob> {
+        const response: Response = await fetch(uri);
+        const blob: Blob = await response.blob();
+        return blob;
+    }
 
 
     return (
