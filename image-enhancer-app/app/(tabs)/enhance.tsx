@@ -111,8 +111,6 @@ export default function EnhanceScreen() {
             // Convert image URI to Blob
             const imageBlob: Blob = await uriToBlob(selectedImage);
 
-            wsUtil.connect()
-
             // Generate or use an existing UUID for the image.
             const uuid = uuidv4();
             // Now, send the Blob (image file) over the WebSocket.
