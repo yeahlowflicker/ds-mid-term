@@ -31,8 +31,8 @@ export default function EnhanceScreen() {
     useEffect(() => {
         // Replace with your WebSocket server URL
         wsUtil.onMessage = (data: any) => {
-            console.log('Custom onMessage handler:', data);
-            // You can parse and handle the data here
+            const payload = JSON.parse(data)
+            setEnhancedImage(`data:image/jpeg;base64,${payload.result}`)
         };
         wsUtil.connect();
         setWsUtility(wsUtil);
@@ -114,13 +114,12 @@ export default function EnhanceScreen() {
             // Generate or use an existing UUID for the image.
             const uuid = uuidv4();
             // Now, send the Blob (image file) over the WebSocket.
-            if (wsUtility) {
-                wsUtility.sendImage(uuid, imageBlob);
-            } else {
+            if (wsUtility)
+                wsUtility.sendImage(uuid, 'sobel', imageBlob);
+            else
                 console.error('WebSocketUtility not initialized.');
-            }
 
-            setEnhancedImage(selectedImage); // Placeholder for enhanced image
+            // setEnhancedImage(selectedImage); // Placeholder for enhanced image
         } catch (error) {
             console.error('Error enhancing image:', error);
             // alert('Error enhancing image. Please try again.');
@@ -129,16 +128,6 @@ export default function EnhanceScreen() {
             setLoading(false);
         }
     };
-
-    // Define types for the server responses
-    interface UploadResponse {
-        jobId: string;
-    }
-    
-    interface StatusResponse {
-        status: 'pending' | 'completed' | 'failed';
-        imageUrl?: string;
-    }
     
     // Helper function that converts a URI to a Blob.
     // Note: Depending on your React Native version or setup, you might need a different approach or library.
