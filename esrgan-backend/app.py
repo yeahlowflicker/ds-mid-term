@@ -4,6 +4,9 @@ from esrgan_anime_model import RealESRGAN_Anime
 from classic_upscale import upscale_bicubic, upscale_lanczos, upscale_bicubic_sharpen
 import os
 import io
+import json
+from flask_sock import Sock
+import base64
 
 app = Flask(__name__)
 anime_model = RealESRGAN_Anime(model_path='weights/RealESRGAN_x4plus_anime_6B.pth')
@@ -16,6 +19,8 @@ def home():
 # POST /enhance : accepts the uploaded image and returns the enhanced version 
 @app.route('/esrgan', methods=['POST'])
 def enhance_esrgan():
+    print('ESRGAN')
+    
     if 'image' not in request.files:
         return jsonify({"error": "No image uploaded"}), 400
 
@@ -32,10 +37,13 @@ def enhance_esrgan():
             download_name=esrgan_filename
         )
     except Exception as e:
+        print(e)
         return jsonify({"error": str(e)}), 500
     
 @app.route('/anime', methods=['POST'])
 def enhance_anime():
+    print('Anime')
+
     if 'image' not in request.files:
         return jsonify({"error": "No image uploaded"}), 400
     
@@ -52,6 +60,7 @@ def enhance_anime():
             download_name=anime_filename
         )
     except Exception as e:
+        print(e)
         return jsonify({"error": str(e)}), 500
 
 @app.route('/bicubic', methods=['POST'])
@@ -107,6 +116,55 @@ def enhance_bicubic_sharpen():
         )
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+sock = Sock(app)
+
+@sock.route('/ws')
+def websocket(ws):
+    print("Client connected via WebSocket.")
+    while True:
+        message = ws.receive()
+        if message is None:  # Client disconnected.
+            print("Client disconnected.")
+            break
+
+        try:
+            data = json.loads(message)
+        except json.JSONDecodeError as e:
+            error_response = {"error": "Invalid JSON", "details": str(e)}
+            ws.send(json.dumps(error_response))
+            continue
+
+        uuid = data.get("uuid")
+        image_data = data.get("image")
+
+        if uuid is None or image_data is None:
+            error_response = {"error": "Missing uuid or image data"}
+            ws.send(json.dumps(error_response))
+            continue
+
+        # Process the image data. Expected to be a Base64 data URL (e.g., "data:image/png;base64,...")
+        try:
+            header, encoded = image_data.split(",", 1)
+            image_bytes = base64.b64decode(encoded)
+
+            print('ESRGAN Bicubic')
+            # result = upscale_bicubic(image_bytes)
+            result = anime_model.enhance(image_bytes)
+            esrgan_filename = f"enhanced_2_{uuid}.png"
+            with open(esrgan_filename, "wb") as image_file:
+                image_file.write(result)
+
+            response = {"status": "success", "uuid": uuid, "message": "Image processed"}
+        except Exception as e:
+            print("Error processing image data:", e)
+            response = {"error": "Failed to process image data", "details": str(e)}
+
+        # Send response back to client.
+        ws.send(json.dumps(response))
+    return ""
+
     
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
