@@ -1,15 +1,21 @@
 from flask import Flask, request, send_file, jsonify
-from esrgan_model import RealESRGAN
+from realesrgan import RealESRGANer
+# from esrgan_model import RealESRGAN
 from esrgan_anime_model import RealESRGAN_Anime
 from classic_upscale import upscale_bicubic, upscale_lanczos, upscale_bicubic_sharpen
+from sobel import enhance_quality_with_sobel
 import os
 import io
 import json
 from flask_sock import Sock
 import base64
+import numpy as np
+import cv2
 
 app = Flask(__name__)
-anime_model = RealESRGAN_Anime(model_path='weights/RealESRGAN_x4plus_anime_6B.pth')
+sock = Sock(app) # Websocket instance
+
+# anime_model = RealESRGAN_Anime(model_path='weights/RealESRGAN_x4plus_anime_6B.pth')
 
 # GET / : endpoint to check if the server is running
 @app.route('/')
@@ -47,7 +53,7 @@ def enhance_anime():
     if 'image' not in request.files:
         return jsonify({"error": "No image uploaded"}), 400
     
-    
+    anime_model = RealESRGAN_Anime(model_path='weights/RealESRGAN_x4plus_anime_6B.pth')
     image_file = request.files['image']
     original_filename = os.path.splitext(image_file.filename)[0]
     try:
@@ -63,62 +69,7 @@ def enhance_anime():
         print(e)
         return jsonify({"error": str(e)}), 500
 
-@app.route('/bicubic', methods=['POST'])
-def enhance_bicubic():
-    if 'image' not in request.files:
-        return jsonify({'error': 'No image provided'}), 400
 
-    image_file = request.files['image']
-    try:
-        result = upscale_bicubic(image_file.read())
-
-        return send_file(
-            io.BytesIO(result),
-            mimetype='image/png',
-            as_attachment=False,
-            download_name='enhanced_bicubic.png'
-        )
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-    
-@app.route('/lanczos', methods=['POST'])
-def enhance_lanczos():
-    if 'image' not in request.files:
-        return jsonify({'error': 'No image provided'}), 400
-
-    image_file = request.files['image']
-    try:
-        result = upscale_lanczos(image_file.read())
-
-        return send_file(
-            io.BytesIO(result),
-            mimetype='image/png',
-            as_attachment=False,
-            download_name='enhanced_lanczos.png'
-        )
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-    
-@app.route('/sharpen', methods=['POST'])
-def enhance_bicubic_sharpen():
-    if 'image' not in request.files:
-        return jsonify({'error': 'No image provided'}), 400
-
-    image_file = request.files['image']
-    try:
-        result = upscale_bicubic_sharpen(image_file.read())
-
-        return send_file(
-            io.BytesIO(result),
-            mimetype='image/png',
-            as_attachment=False,
-            download_name='enhanced_sharpen.png'
-        )
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
-sock = Sock(app)
 
 @sock.route('/ws')
 def websocket(ws):
@@ -137,6 +88,7 @@ def websocket(ws):
             continue
 
         uuid = data.get("uuid")
+        enhancement_type = data.get("enhancement_type")
         image_data = data.get("image")
 
         if uuid is None or image_data is None:
@@ -144,26 +96,37 @@ def websocket(ws):
             ws.send(json.dumps(error_response))
             continue
 
-        # Process the image data. Expected to be a Base64 data URL (e.g., "data:image/png;base64,...")
-        try:
-            header, encoded = image_data.split(",", 1)
-            image_bytes = base64.b64decode(encoded)
+        header, encoded = image_data.split(",", 1)
+        image_bytes = base64.b64decode(encoded)
 
-            print('ESRGAN Bicubic')
-            # result = upscale_bicubic(image_bytes)
-            result = anime_model.enhance(image_bytes)
-            esrgan_filename = f"enhanced_2_{uuid}.png"
-            with open(esrgan_filename, "wb") as image_file:
-                image_file.write(result)
+        print('Enhancement starting...')
+        
+        if enhancement_type == 'sobel':
+            result = enhance_quality_with_sobel(image_bytes)
+        elif enhancement_type == 'esrgan':
+            pass
+        elif enhancement_type == 'anime':
+            pass
+        elif enhancement_type == 'bicubic':
+            result = upscale_bicubic(image_bytes)
+        elif enhancement_type == 'lanczos':
+            result = upscale_lanczos(image_bytes)
+        elif enhancement_type == 'sharpen':
+            result = upscale_sharpen(image_bytes)
+        else:
+            print('Invalid enhancement type. Aborting...')
+            return
 
-            response = {"status": "success", "uuid": uuid, "message": "Image processed"}
-        except Exception as e:
-            print("Error processing image data:", e)
-            response = {"error": "Failed to process image data", "details": str(e)}
+        print('Enhancement complete.')
+            
+        response = {
+            "status": "success",
+            "uuid": uuid,
+            "result": base64.b64encode(result).decode()
+        }
 
-        # Send response back to client.
         ws.send(json.dumps(response))
-    return ""
+    return
 
     
 if __name__ == '__main__':
